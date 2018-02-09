@@ -53,13 +53,24 @@ public WebWorker(Socket s)
 **/
 public void run()
 {
+   String content = "text/html";        // default file type 
+
    System.err.println("Handling connection...");
    try {
       InputStream  is = socket.getInputStream();
       OutputStream os = socket.getOutputStream();
       String path = readHTTPRequest(is);
-      writeHTTPHeader(os,"text/html",path);
-      writeContent(os,path);
+      if(path.contains(".png")){                   // checking the file extentions
+            content = "image/png";
+      }
+      else if(path.contains(".jpeg")){
+            content = "image/jpeg";
+      }
+      else if(path.contains(".gif")){
+            content = "image/gif";
+      }
+      writeHTTPHeader(os,content,path);
+      writeContent(os,content,path);
       os.flush();
       socket.close();
    } catch (Exception e) {
@@ -97,9 +108,9 @@ private String readHTTPRequest(InputStream is)
 /**
 * Write the HTTP header lines to the client network connection.
 * @param os is the OutputStream object to write to
-* @param contentType is the string MIME content type (e.g. "text/html")
+* @param content is the string MIME content type (e.g. "text/html")
 **/
-private void writeHTTPHeader(OutputStream os, String contentType, String path) throws Exception
+private void writeHTTPHeader(OutputStream os, String content, String path) throws Exception
 {
    int flag =0;
    Date d = new Date();
@@ -126,7 +137,7 @@ private void writeHTTPHeader(OutputStream os, String contentType, String path) t
    //os.write("Content-Length: 438\n".getBytes()); 
    os.write("Connection: close\n".getBytes());
    os.write("Content-Type: ".getBytes());
-   os.write(contentType.getBytes());
+   os.write(content.getBytes());
    os.write("\n\n".getBytes()); // HTTP header ends with 2 newlines
    return;
 }
@@ -136,35 +147,47 @@ private void writeHTTPHeader(OutputStream os, String contentType, String path) t
 * be done after the HTTP header has been written out.
 * @param os is the OutputStream object to write to
 **/
-private void writeContent(OutputStream os,String path) throws Exception
+private void writeContent(OutputStream os,String content, String path) throws Exception
 {
    String line = "";
    Date d = new Date();
    DateFormat df = DateFormat.getDateTimeInstance();
    df.setTimeZone(TimeZone.getTimeZone("GMT"));
-   try {
+  
+   if(content.contains("text/html"))
+      {
+      try {
+            
+            File f = new File(path.substring(1));
+            FileInputStream stream =new FileInputStream(f);
+            BufferedReader buff = new BufferedReader(new InputStreamReader(stream));
       
-      File f = new File(path.substring(1));
-      FileInputStream stream =new FileInputStream(f);
-      BufferedReader buff = new BufferedReader(new InputStreamReader(stream));
-   
-      while((line = buff.readLine()) != null) {
-         if(line.contains("<cs371date>")){
-            os.write(d.toString().getBytes());
-            os.write("<br>".getBytes());
-         }
-         else if(line.contains("<cs371server>")){
-            os.write("This server is hard to do".getBytes());
-            os.write("<br>".getBytes());
-         }
-         else {
-            os.write(line.getBytes());
-         }
-   } 
-} 
- catch (Exception e) {
-      os.write("404 Not Found".getBytes());
-   }
+            while((line = buff.readLine()) != null) {
+            if(line.contains("<cs371date>")){
+                  os.write(d.toString().getBytes());
+                  os.write("<br>".getBytes());
+            }
+            else if(line.contains("<cs371server>")){
+                  os.write("This server is hard to do".getBytes());
+                  os.write("<br>".getBytes());
+            }
+            else {
+                  os.write(line.getBytes());
+            }
+      } 
+      } 
+      catch (Exception e) {
+            os.write("404 Not Found".getBytes());
+      }
+      }
+      else if(content.contains("image")){            
+            int index;
+            File f = new File(path.substring(1));  
+            FileInputStream ff = new FileInputStream(path.substring(1));
+            int size =(int) f.length();
+            byte b [] = new byte[size];
+            while((index = ff.read(b)) >0)
+                  os.write(b,0,index);
+      }
 }
-
 } // end class
